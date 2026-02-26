@@ -424,7 +424,7 @@ class NetFunnelHelper:
         "User-Agent": "Apache-HttpClient/UNAVAILABLE (java 1.4)",
     }
 
-    def __init__(self):
+    def __init__(self, verbose=False):
         if HAS_CURL_CFFI:
             self._session = curl_cffi.Session(impersonate="chrome131_android")
         else:
@@ -433,15 +433,19 @@ class NetFunnelHelper:
         self._cached_key = None
         self._last_fetch_time = 0
         self._cache_ttl = 50  # 50 seconds
+        self._verbose = verbose
 
     def run(self):
         current_time = time.time()
         if self._is_cache_valid(current_time):
+            print(f"[NetFunnel] 캐시된 키 사용")
             return self._cached_key
 
         try:
+            print(f"[NetFunnel] 새 키 요청 중 (sid=service_1, aid=act_8)...")
             status, self._cached_key, nwait = self._start()
             self._last_fetch_time = current_time
+            print(f"[NetFunnel] start 결과: status={status}, key={'있음' if self._cached_key else '없음'}")
 
             while status == self.WAIT_STATUS_FAIL:
                 print(f"\r현재 {nwait}명 대기중...", end="", flush=True)
@@ -449,14 +453,17 @@ class NetFunnelHelper:
                 status, self._cached_key, nwait = self._check()
 
             if status == self.WAIT_STATUS_PASS:
+                print(f"[NetFunnel] PASS 성공")
                 return self._cached_key
 
+            print(f"[NetFunnel] 실패 - status={status}")
             self.clear()
             raise NetFunnelError("Failed to pass NetFunnel")
 
         except NetFunnelError:
             raise
         except Exception as ex:
+            print(f"[NetFunnel] 예외 발생: {ex}")
             self.clear()
             raise NetFunnelError(str(ex))
 
@@ -483,9 +490,9 @@ class NetFunnelHelper:
 
     def _make_request(self, opcode: str):
         params = self._build_params(self.OP_CODE[opcode])
-        response = self._parse(
-            self._session.get(self.NETFUNNEL_URL, params=params).text
-        )
+        raw = self._session.get(self.NETFUNNEL_URL, params=params).text
+        print(f"[NetFunnel] {opcode} -> {raw[:150]}")
+        response = self._parse(raw)
         return response.get("status"), response.get("key"), response.get("nwait")
 
     def _build_params(self, opcode: str, key: str = None) -> dict:
@@ -527,7 +534,7 @@ class Korail:
         else:
             self._session = requests.session()
         self._session.headers.update(DEFAULT_HEADERS)
-        self._netfunnel = NetFunnelHelper()
+        self._netfunnel = NetFunnelHelper(verbose=verbose)
         self._device = "AD"
         self._version = "240531001"
         self._key = "korail1234567890"
@@ -616,12 +623,19 @@ class Korail:
         if j.get("strResult") == "FAIL":
             h_msg_cd = j.get("h_msg_cd", "")
             h_msg_txt = j.get("h_msg_txt", "")
+            if "MACRO" in h_msg_cd.upper() or "MACRO" in h_msg_txt.upper():
+                # Always print MACRO debug info regardless of verbose
+                print(f"[MACRO ERROR] h_msg_cd={h_msg_cd}")
+                print(f"[MACRO ERROR] h_msg_txt={h_msg_txt}")
+                print(f"[MACRO ERROR] netfunnel_key={self._netfunnel._cached_key}")
+                print(f"[MACRO ERROR] full response: {json.dumps(j, ensure_ascii=False)[:500]}")
+                self._netfunnel.clear()
+                raise MacroDetectedError(h_msg_cd)
+            if self.verbose:
+                print(f"[API FAIL] h_msg_cd={h_msg_cd}, h_msg_txt={h_msg_txt}")
             for error in (NoResultsError, NeedToLoginError, SoldOutError):
                 if h_msg_cd in error.codes:
                     raise error(h_msg_cd)
-            if "MACRO" in h_msg_cd.upper() or "MACRO" in h_msg_txt.upper():
-                self._netfunnel.clear()
-                raise MacroDetectedError(h_msg_cd)
             raise KorailError(h_msg_txt, h_msg_cd)
         return True
 
@@ -687,9 +701,12 @@ class Korail:
             "mbCrdNo": self.membership_number,
         }
 
+        nf_key = data.get("netfunnelKey", "")
+        print(f"[search] netfunnelKey={'있음 (' + nf_key[:30] + '...)' if nf_key else '없음'}")
+
         r = self._session.get(API_ENDPOINTS["search_schedule"], params=data)
         self._netfunnel.complete()
-        self._log(r.text)
+        print(f"[search] HTTP {r.status_code}, response_length={len(r.text)}")
         j = json.loads(r.text)
 
         if self._result_check(j):

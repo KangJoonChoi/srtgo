@@ -631,7 +631,8 @@ def reserve(rail_type="SRT", debug=False):
         try:
             trains = rail.search_train(**params)
             break
-        except (MacroDetectedError, NetFunnelError):
+        except (MacroDetectedError, NetFunnelError) as e:
+            print(f"[재시도 {attempt+1}/3] {type(e).__name__}: {e}")
             rail.clear()
             _sleep()
     if trains is None:
