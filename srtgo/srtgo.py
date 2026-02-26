@@ -626,11 +626,15 @@ def reserve(rail_type="SRT", debug=False):
         ),
     }
 
-    try:
-        trains = rail.search_train(**params)
-    except (MacroDetectedError, NetFunnelError):
-        rail.clear()
-        _sleep()
+    trains = None
+    for attempt in range(3):
+        try:
+            trains = rail.search_train(**params)
+            break
+        except (MacroDetectedError, NetFunnelError):
+            rail.clear()
+            _sleep()
+    if trains is None:
         trains = rail.search_train(**params)
 
     def train_decorator(train):

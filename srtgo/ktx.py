@@ -448,17 +448,25 @@ class NetFunnelHelper:
                 time.sleep(1)
                 status, self._cached_key, nwait = self._check()
 
-            # Try completing once
-            status, _, _ = self._complete()
-            if status == self.WAIT_STATUS_PASS or status == self.ALREADY_COMPLETED:
+            if status == self.WAIT_STATUS_PASS:
                 return self._cached_key
 
             self.clear()
-            raise NetFunnelError("Failed to complete NetFunnel")
+            raise NetFunnelError("Failed to pass NetFunnel")
 
+        except NetFunnelError:
+            raise
         except Exception as ex:
             self.clear()
             raise NetFunnelError(str(ex))
+
+    def complete(self):
+        """Call after API request to release the NetFunnel session."""
+        if self._cached_key:
+            try:
+                self._complete()
+            except Exception:
+                pass
 
     def clear(self):
         self._cached_key = None
@@ -680,6 +688,7 @@ class Korail:
         }
 
         r = self._session.get(API_ENDPOINTS["search_schedule"], params=data)
+        self._netfunnel.complete()
         self._log(r.text)
         j = json.loads(r.text)
 
@@ -769,6 +778,7 @@ class Korail:
             data.update(psg.get_dict(i))
 
         r = self._session.get(API_ENDPOINTS["reserve"], params=data)
+        self._netfunnel.complete()
         self._log(r.text)
         j = json.loads(r.text)
         if self._result_check(j):
