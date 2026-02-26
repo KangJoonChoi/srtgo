@@ -20,6 +20,8 @@ import re
 from .ktx import (
     Korail,
     KorailError,
+    MacroDetectedError,
+    NetFunnelError,
     ReserveOption,
     TrainType,
     AdultPassenger,
@@ -624,7 +626,12 @@ def reserve(rail_type="SRT", debug=False):
         ),
     }
 
-    trains = rail.search_train(**params)
+    try:
+        trains = rail.search_train(**params)
+    except (MacroDetectedError, NetFunnelError):
+        rail.clear()
+        _sleep()
+        trains = rail.search_train(**params)
 
     def train_decorator(train):
         msg = train.__repr__()
@@ -747,11 +754,19 @@ def reserve(rail_type="SRT", debug=False):
                     return
             _sleep()
 
+        except (MacroDetectedError, NetFunnelError) as ex:
+            if debug:
+                print(
+                    f"\nException: {ex}\nType: {type(ex)}\nArgs: {ex.args}"
+                )
+            rail.clear()
+            _sleep()
+
         except KorailError as ex:
             msg = ex.msg
             if "Need to Login" in msg:
                 rail = login(rail_type, debug=debug)
-                if not rail.is_login and not _handle_error(ex):
+                if not rail.logined and not _handle_error(ex):
                     return
             elif not any(
                 err in msg

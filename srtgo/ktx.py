@@ -391,6 +391,11 @@ class SoldOutError(KorailError):
         super().__init__("Sold out", code)
 
 
+class MacroDetectedError(KorailError):
+    def __init__(self, code=None):
+        super().__init__("Macro detected", code)
+
+
 class NetFunnelError(Exception):
     def __init__(self, msg):
         self.msg = msg
@@ -514,6 +519,7 @@ class Korail:
         else:
             self._session = requests.session()
         self._session.headers.update(DEFAULT_HEADERS)
+        self._netfunnel = NetFunnelHelper()
         self._device = "AD"
         self._version = "240531001"
         self._key = "korail1234567890"
@@ -600,11 +606,14 @@ class Korail:
 
     def _result_check(self, j):
         if j.get("strResult") == "FAIL":
-            h_msg_cd = j.get("h_msg_cd")
-            h_msg_txt = j.get("h_msg_txt")
+            h_msg_cd = j.get("h_msg_cd", "")
+            h_msg_txt = j.get("h_msg_txt", "")
             for error in (NoResultsError, NeedToLoginError, SoldOutError):
                 if h_msg_cd in error.codes:
                     raise error(h_msg_cd)
+            if "MACRO" in h_msg_cd.upper() or "MACRO" in h_msg_txt.upper():
+                self._netfunnel.clear()
+                raise MacroDetectedError(h_msg_cd)
             raise KorailError(h_msg_txt, h_msg_cd)
         return True
 
@@ -645,7 +654,8 @@ class Korail:
         data = {
             "Device": self._device,
             "Version": self._version,
-            "Sid": "",
+            "Key": self._key,
+            "netfunnelKey": self._netfunnel.run(),
             "txtMenuId": "11",
             "radJobId": "1",
             "selGoTrain": train_type,
@@ -716,6 +726,7 @@ class Korail:
             "Device": self._device,
             "Version": self._version,
             "Key": self._key,
+            "netfunnelKey": self._netfunnel.run(),
             "txtMenuId": "11",
             "txtJobId": "1101" if reserving_seat else "1102",
             "txtGdNo": "",
@@ -946,3 +957,7 @@ class Korail:
         self._log(r.text)
         j = json.loads(r.text)
         return self._result_check(j)
+
+    def clear(self):
+        self._log("Clearing the netfunnel key")
+        self._netfunnel.clear()
