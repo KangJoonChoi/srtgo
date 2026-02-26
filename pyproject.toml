@@ -3,12 +3,12 @@ requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "srtgo"
+name = "neosrtgo"
 version = "1.0.0"
 authors = [
     {name = "DKim", email = "lapis42@gmail.com"},
 ]
-description = "SRTgo: K-Train Reservation Helper"
+description = "NeoSRTgo: K-Train Reservation Helper"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT License"}
@@ -31,4 +31,4 @@ dependencies = [
 Homepage = "https://github.com/lapis42/srtgo"
 
 [project.scripts]
-srtgo = "srtgo.srtgo:srtgo"
+neosrtgo = "srtgo.srtgo:srtgo"
