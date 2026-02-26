@@ -1,9 +1,10 @@
 [build-system]
-requires = ["setuptools", "setuptools-scm"]
+requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "srtgo"
+version = "1.0.0"
 authors = [
     {name = "DKim", email = "lapis42@gmail.com"},
 ]
@@ -25,8 +26,6 @@ dependencies = [
     "python-telegram-bot",
     "termcolor"
 ]
-dynamic = ["version"]
-[tool.setuptools_scm]
 
 [project.urls]
 Homepage = "https://github.com/lapis42/srtgo"
