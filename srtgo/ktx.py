@@ -536,7 +536,7 @@ class Korail:
         self._session.headers.update(DEFAULT_HEADERS)
         self._netfunnel = NetFunnelHelper(verbose=verbose)
         self._device = "AD"
-        self._version = "240531001"
+        self._version = "260225001"
         self._key = "korail1234567890"
         self._idx = None
         self.korail_id = korail_id
@@ -611,6 +611,14 @@ class Korail:
             )
             self.logined = True
             return True
+
+        h_msg_cd = j.get("h_msg_cd", "")
+        h_msg_txt = j.get("h_msg_txt", "")
+        if "MACRO" in h_msg_cd.upper() or "MACRO" in h_msg_txt.upper():
+            print(f"[LOGIN MACRO ERROR] h_msg_cd={h_msg_cd}")
+            print(f"[LOGIN MACRO ERROR] h_msg_txt={h_msg_txt}")
+            raise MacroDetectedError(h_msg_cd)
+
         self.logined = False
         return False
 
