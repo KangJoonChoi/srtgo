@@ -442,8 +442,16 @@ def login(rail_type="SRT", debug=False):
     user_id = keyring.get_password(rail_type, "id")
     password = keyring.get_password(rail_type, "pass")
 
-    rail = SRT if rail_type == "SRT" else Korail
-    return rail(user_id, password, verbose=debug)
+    if rail_type == "SRT":
+        return SRT(user_id, password, verbose=debug)
+
+    for attempt in range(3):
+        try:
+            return Korail(user_id, password, verbose=debug)
+        except (MacroDetectedError, NetFunnelError) as e:
+            print(f"[로그인 재시도 {attempt+1}/3] {e}")
+            _sleep()
+    return Korail(user_id, password, verbose=debug)
 
 
 def reserve(rail_type="SRT", debug=False):

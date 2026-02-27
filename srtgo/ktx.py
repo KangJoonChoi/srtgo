@@ -594,6 +594,7 @@ class Korail:
             "Device": self._device,
             "Version": self._version,
             "Key": self._key,
+            "netfunnelKey": self._netfunnel.run(),
             "txtMemberNo": self.korail_id,
             "txtPwd": self.__enc_password(self.korail_pw),
             "txtInputFlg": txt_input_flg,
@@ -601,6 +602,7 @@ class Korail:
         }
 
         r = self._session.post(API_ENDPOINTS["login"], data=data)
+        self._netfunnel.complete()
         self._log(r.text)
         j = json.loads(r.text)
 
